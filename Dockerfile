@@ -1,20 +1,8 @@
 # GCC
-FROM alpine as alpine
-
+FROM alpine AS builder
 ENV GCC_VERSION=8.4.0
 
-
-FROM alpine as builder
-
-RUN apk add --quiet --no-cache \
-            build-base \
-            dejagnu \
-            isl-dev \
-            make \
-            mpc1-dev \
-            mpfr-dev \
-            texinfo \
-            zlib-dev
+RUN apk add --quiet --no-cache build-base dejagnu isl-dev make mpc1-dev mpfr-dev texinfo zlib-dev
 RUN wget -q https://ftp.gnu.org/gnu/gcc/gcc-${GCC_VERSION}/gcc-${GCC_VERSION}.tar.gz && \
     tar -xzf gcc-${GCC_VERSION}.tar.gz && \
     rm -f gcc-${GCC_VERSION}.tar.gz
@@ -22,68 +10,55 @@ RUN wget -q https://ftp.gnu.org/gnu/gcc/gcc-${GCC_VERSION}/gcc-${GCC_VERSION}.ta
 WORKDIR /gcc-${GCC_VERSION}
 
 RUN ./configure \
-        --prefix=/usr/local \
-        --build=$(uname -m)-alpine-linux-musl \
-        --host=$(uname -m)-alpine-linux-musl \
-        --target=$(uname -m)-alpine-linux-musl \
-        --with-pkgversion="Alpine ${GCC_VERSION}" \
-        --enable-checking=release \
-        --disable-fixed-point \
-        --disable-libmpx \
-        --disable-libmudflap \
-        --disable-libsanitizer \
-        --disable-libssp \
-        --disable-libstdcxx-pch \
-        --disable-multilib \
-        --disable-nls \
-        --disable-symvers \
-        --disable-werror \
-        --enable-__cxa_atexit \
-        --enable-default-pie \
-        --enable-languages=c,c++ \
-        --enable-shared \
-        --enable-threads \
-        --enable-tls \
-        --with-linker-hash-style=gnu \
-        --with-system-zlib
+    --prefix=/usr/local \
+    --build=$(uname -m)-alpine-linux-musl \
+    --host=$(uname -m)-alpine-linux-musl \
+    --target=$(uname -m)-alpine-linux-musl \
+    --with-pkgversion="Alpine ${GCC_VERSION}" \
+    --enable-checking=release \
+    --disable-fixed-point \
+    --disable-libmpx \
+    --disable-libmudflap \
+    --disable-libsanitizer \
+    --disable-libssp \
+    --disable-libstdcxx-pch \
+    --disable-multilib \
+    --disable-nls \
+    --disable-symvers \
+    --disable-werror \
+    --enable-__cxa_atexit \
+    --enable-default-pie \
+    --enable-languages=c,c++ \
+    --enable-shared \
+    --enable-threads \
+    --enable-tls \
+    --with-linker-hash-style=gnu \
+    --with-system-zlib
+
 RUN make --silent -j $(nproc)
 RUN make --silent -j $(nproc) install-strip
-
 RUN ln -s /usr/bin/gcc /usr/local/bin/cc
-
-RUN gcc -v
-
-
-FROM alpine
-
-RUN apk add --quiet --no-cache \
-            autoconf \
-            automake \
-            binutils \
-            cmake \
-            file \
-            git \
-            gmp \
-            isl \
-            libc-dev \
-            libtool \
-            make \
-            mpc1 \
-            mpfr4 \
-            musl-dev \
-            pkgconf \
-            zlib-dev
-
-COPY --from=builder /usr/local/ /usr/
-
-WORKDIR /src
-
 
 # Golang
 FROM alpine:3.12
-
-RUN apk add --no-cache \
-		ca-certificates
+RUN apk add --quiet --no-cache \
+    ca-certificates \
+    autoconf \
+    automake \
+    binutils \
+    cmake \
+    file \
+    git \
+    gmp \
+    isl \
+    libc-dev \
+    libtool \
+    make \
+    mpc1 \
+    mpfr4 \
+    musl-dev \
+    pkgconf \
+    zlib-dev
 
 # set up nsswitch.conf for Go's "netgo" implementation
 # - https://github.com/golang/go/blob/go1.9.1/src/net/conf.go#L194-L275
@@ -143,4 +118,8 @@ ENV GOPATH /go
 ENV PATH $GOPATH/bin:/usr/local/go/bin:$PATH
 
 RUN mkdir -p "$GOPATH/src" "$GOPATH/bin" && chmod -R 777 "$GOPATH"
+
+# Copy GCC from earlier layer
+COPY --from=builder /usr/local/ /usr/
+
 WORKDIR $GOPATH
