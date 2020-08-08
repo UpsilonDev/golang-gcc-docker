@@ -1,4 +1,4 @@
-# Alpine Golang + GCC 8
+# Alpine Golang + GCC 8 musl
 
 Golang 1.14 & GCC 8 in an Alpine Linux container, used for compiling Go programs with C/C++ dependencies.
 
